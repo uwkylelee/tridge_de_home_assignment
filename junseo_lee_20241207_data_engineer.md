@@ -130,7 +130,7 @@ WHERE transaction_count = (SELECT MAX(transaction_count)
                            FROM num_transactions);
 ```
 
-### Explanation(if you need)
+### Explanation
 
 #### CTE 1: num_transactions
 
@@ -178,7 +178,7 @@ WHERE ue.unique_importer_count = (SELECT MAX(unique_importer_count)
                                   FROM unique_exporters);
 ```
 
-### Explanation(if you need)
+### Explanation
 
 #### What this reveals about market concentration
 
@@ -187,7 +187,7 @@ higher unique importer count indicates that the exporter has relationships with 
 companies. This diversity can reflect the exporter's market reach, competitiveness, and ability to engage with a broad
 range of importers. There are several implications of having relationships with a higher number of importers:
 
-From an Exporter Perspective:
+**From an Exporter Perspective:**
 
 1. Exporters with a large number of unique importers, like Company_069, can leverage their dominant position to
    negotiate better terms and maintain a competitive edge in the market.
@@ -197,7 +197,7 @@ From an Exporter Perspective:
 3. A higher count of unique importers reduces dependency on a few clients, which mitigates the risk of revenue loss if
    one or more importers cease trading.
 
-From a Market Perspective:
+**From a Market Perspective:**
 
 1. A diverse set of importers suggests a competitive market environment where exporters strive to attract and retain
    clients through various strategies, such as pricing, quality, and service offerings.
@@ -288,7 +288,7 @@ ORDER BY hctc.transaction_count DESC
 LIMIT 3;
 ```
 
-### Explanation(if you need)
+### Explanation
 
 #### CTE 1: transactions_in_usd
 
@@ -381,7 +381,7 @@ WHERE up.unit_price_usd BETWEEN ib.lower_bound AND ib.upper_bound
 GROUP BY up.weight_unit;
 ```
 
-### Explanation(if you need)
+### Explanation
 
 The SQL query is written to calculate a reasonable unit price for Orange-related imports in 2023. Although the dataset
 only contains one weight unit (KG), the query is designed to be scalable for multiple weight units.
@@ -560,7 +560,7 @@ CREATE TABLE fact_transactions
 );
 ```
 
-### Explanation(if you need)
+### Explanation
 
 #### Star Schema Design
 
@@ -583,7 +583,9 @@ The star schema is composed of:
 
 ---
 
-## Additional Notes
+[//]: # (## Additional Notes)
 
-- Refer to the `q_{question_number}.sql` files for the complete SQL queries and DDL statements.
+[//]: # ()
+[//]: # (- Refer to the `q_{question_number}.sql` files for the complete SQL queries and DDL statements.)
 
+[//]: # ()
