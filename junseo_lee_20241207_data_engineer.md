@@ -2,16 +2,48 @@
 
 ## ToC
 
+<details>
+    <summary>Table of Contents</summary>
+
 - [Common Assumptions](#common-assumptions)
     - [Date Column](#date-column)
     - [Timezone](#timezone)
     - [Currency Exchange Rate](#currency-exchange-rate)
         - [Why these rates?](#why-these-rates)
 - [Question 1](#question-1)
+    - [Answer](#answer)
+    - [SQL Query](#sql-query)
+    - [Explanation(if you need)](#explanationif-you-need)
+        - [CTE 1: num_transactions](#cte-1-num_transactions)
+        - [Final SELECT Statement](#final-select-statement)
+        - [Why MAX() instead of LIMIT 1?](#why-max-instead-of-limit-1)
 - [Question 2](#question-2)
+    - [Answer](#answer-1)
+    - [SQL Query](#sql-query-1)
+    - [Explanation(if you need)](#explanationif-you-need-1)
+        - [CTE 1: unique_exporters](#cte-1-unique_exporters)
+        - [Final SELECT Statement](#final-select-statement-1)
 - [Question 3](#question-3)
+    - [Answer](#answer-2)
+    - [SQL Query](#sql-query-2)
+    - [Explanation(if you need)](#explanationif-you-need-2)
+        - [CTE 1: transactions_in_usd](#cte-1-transactions_in_usd)
+        - [CTE 2: price_sum_rank](#cte-2-price_sum_rank)
+        - [CTE 3: largest_price_sum_exporter](#cte-3-largest_price_sum_exporter)
+        - [CTE 4: hs_code_transaction_count](#cte-4-hs_code_transaction_count)
+        - [Final SELECT Statement](#final-select-statement-2)
+        - [What this reveals about market concentration](#what-this-reveals-about-market-concentration)
 - [Question 4](#question-4)
+    - [Answer](#answer-3)
+    - [SQL Query](#sql-query-3)
+    - [Explanation(if you need)](#explanationif-you-need-3)
 - [Question 5](#question-5)
+    - [Answer](#answer-4)
+    - [SQL Query](#sql-query-4)
+    - [Explanation(if you need)](#explanationif-you-need-4)
+- [Additional Notes](#additional-notes)
+
+</details> 
 
 ## Common Assumptions
 
@@ -143,21 +175,21 @@ WHERE ue.unique_importer_count = (SELECT MAX(unique_importer_count)
 
 #### CTE 1: unique_exporters
 
-First CTE I have created is called `unique_exporters`. In this CTE, I have counted the number of unique importers for
-each exporter. I have used the `COUNT(DISTINCT importer_id)` to ensure that each importer is counted only once for each
-exporter. I have filtered the transactions based on the date range between '2023-01-01' and '2024-01-01' to only
-consider the transactions that occurred in 2023. I have grouped the results by the `exporter_id`.
+The first CTE, named `unique_exporters`, calculates the number of distinct importers for each exporter. This is achieved
+by using `COUNT(DISTINCT importer_id)` to ensure each importer is counted only once per exporter. The transactions are
+filtered to include only those occurring in 2023 using the `WHERE` clause. The `GROUP BY exporter_id` clause groups the
+results by the exporter's ID.
 
 #### Final SELECT Statement
 
-After creating the `unique_exporters` CTE, I have joined it with the `companies` table to get the exporter's name. This
-way, I could reduce the number of rows being `JOIN`ed. Finally, I have selected the exporter's name from the `companies`
-table and the unique importer count from the `unique_exporters` CTE. In the `WHERE` clause, I have filtered the results
-to only include the exporter with the maximum unique importer count using the `MAX()` function. By using `MAX()`, we
-ensure that all exporters with the maximum unique importer count are returned. Although this dataset only contains
-one exporter with the maximum unique importer count, using `MAX()` allows us to handle cases where multiple exporters
-have the same maximum unique importer count.
+Once the `unique_exporters` CTE is created, it is joined with the `companies` table to retrieve the exporter's name.
+This approach reduces the number of rows involved in the `JOIN` operation. The final selection includes the exporter's
+name from the `companies` table and the count of unique importers from the `unique_exporters` CTE.
 
+In the `WHERE` clause, the results are filtered to include only the exporters with the highest unique importer count
+by applying the `MAX()` function. This ensures that all exporters sharing the maximum unique importer count are
+returned. Although the dataset given contains only one exporter with the maximum count, using `MAX()` ensures
+allows us to handle cases where multiple exporters have the same maximum unique importer count.
 ---
 
 ## Question 3
@@ -211,22 +243,60 @@ SELECT c.name AS exporter_name,
 FROM hs_code_transaction_count hctc
          JOIN companies c
               ON hctc.exporter_id = c.id
-WHERE transaction_count_rank <= 3;
+WHERE transaction_count_rank <= 3
+ORDER BY hctc.transaction_count DESC
+LIMIT 3;
 ```
 
 ### Explanation(if you need)
 
 #### CTE 1: transactions_in_usd
 
-First, I have created a Common Table Expression (CTE) called `transactions_in_usd` to calculate the total price of each
+This CTE converts transaction amounts into USD and aggregates the data by exporter_id and hs_code. The conversion is
+done based on the currency of the transaction using the provided exchange rates in the assumptions section.
+Additionally, I aggregated the data by exporter_id and hs_code to calculate the total transaction count and the sum of
+transaction prices in USD for each combination of exporter and hs_code. By grouping the data in this way, we can
+reduce the number of rows involved in the subsequent analysis.
 
 #### CTE 2: price_sum_rank
 
+This CTE ranks exporters based on their total transaction value in USD. After grouping the data
+by `exporter_id`, I used the `RANK()` function to assign ranks in descending order of the sum of `total_price_in_usd`.
+Exporters with the highest total transaction value receive a rank of 1. In this way, we can ensure that if multiple
+exporters have the same total transaction value, they will share the same rank. Using `LIMIT 1` would return only one
+exporter, but using `RANK()` allows us to handle cases where multiple exporters have the same total transaction value.
+
 #### CTE 3: largest_price_sum_exporter
+
+In this CTE, I filtered the results from the `price_sum_rank` CTE to select only the exporters with a rank of 1.
 
 #### CTE 4: hs_code_transaction_count
 
+This CTE ranks `hs_code` values for the top-performing exporters (notably, only one exporter in the given dataset)
+identified in the previous step. The data is partitioned by `exporter_id` and sorted by transaction count in descending
+order, with ranks assigned using the `RANK()` function. This approach helps highlight the product categories with the
+most transactions for the leading exporter. Again, the `RANK()` function is used to handle cases where
+multiple `hs_code` values have the same transaction count. The question asks for the top 3 frequently exported `hs_code`
+values, so we limit the results to the top 3 ranks in the final `SELECT` statement.
+
 #### Final SELECT Statement
+
+In the final `SELECT` statement, I joined the `hs_code_transaction_count` CTE with the `companies` table to retrieve the
+exporter's name and country code. Performing the `JOIN` operation at this stage ensures that we only join the rows that
+meet the specified criteria, reducing the number of rows involved in the operation. I filtered the results to show only
+the top 3 `hs_code` values per exporter based on transaction count using the `transaction_count_rank <= 3` condition.
+This condition might return more than 3 rows if multiple `hs_code` values share the same transaction count rank (e.g.,
+4 `hs_code` values with the same transaction count rank of 1). Hence, I finalized the query by limiting the results to
+the top 3 ranks using `ORDER BY hctc.transaction_count DESC LIMIT 3`.
+
+#### What this reveals about market concentration
+
+The analysis reveals insights into market concentration by identifying the exporter with the highest total transaction
+value and the top 3 frequently exported `hs_code` values. By focusing on the exporter with the largest sum of total
+prices, we can gain a better understanding of the market dynamics and the key product categories driving revenue for the
+company. The top 3 frequently exported `hs_code` values provide valuable information about the exporter's core business
+activities and market focus. This analysis can help stakeholders make informed decisions about market strategies,
+product development, and growth opportunities based on the identified trends and patterns in the transaction data.
 
 ---
 
