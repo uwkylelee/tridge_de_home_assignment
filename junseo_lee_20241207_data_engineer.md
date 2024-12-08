@@ -190,6 +190,7 @@ In the `WHERE` clause, the results are filtered to include only the exporters wi
 by applying the `MAX()` function. This ensures that all exporters sharing the maximum unique importer count are
 returned. Although the dataset given contains only one exporter with the maximum count, using `MAX()` ensures
 allows us to handle cases where multiple exporters have the same maximum unique importer count.
+
 ---
 
 ## Question 3
@@ -284,10 +285,10 @@ values, so we limit the results to the top 3 ranks in the final `SELECT` stateme
 In the final `SELECT` statement, I joined the `hs_code_transaction_count` CTE with the `companies` table to retrieve the
 exporter's name and country code. Performing the `JOIN` operation at this stage ensures that we only join the rows that
 meet the specified criteria, reducing the number of rows involved in the operation. I filtered the results to show only
-the top 3 `hs_code` values per exporter based on transaction count using the `transaction_count_rank <= 3` condition.
-This condition might return more than 3 rows if multiple `hs_code` values share the same transaction count rank (e.g.,
-4 `hs_code` values with the same transaction count rank of 1). Hence, I finalized the query by limiting the results to
-the top 3 ranks using `ORDER BY hctc.transaction_count DESC LIMIT 3`.
+the top 3 frequently exported `hs_code` using the `transaction_count_rank <= 3` condition. This condition might return
+more than 3 rows if multiple `hs_code` values share the same transaction count rank (e.g., 4 `hs_code` values with the
+same transaction count rank of 1). Hence, I finalized the query by limiting the results to the top 3 ranks
+using `ORDER BY hctc.transaction_count DESC LIMIT 3`.
 
 #### What this reveals about market concentration
 
