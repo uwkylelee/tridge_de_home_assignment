@@ -201,8 +201,10 @@ range of importers. There are several implications of having relationships with 
 
 1. A diverse set of importers suggests a competitive market environment where exporters strive to attract and retain
    clients through various strategies, such as pricing, quality, and service offerings.
+
 2. Importers dealing with dominant exporters may face challenges in negotiating favorable terms due to the exporter’s
    strong market position.
+
 3. A high concentration of trade with a single exporter may lead to reliance on that supplier, posing risks if supply
    disruptions occur.
 
@@ -560,16 +562,66 @@ CREATE TABLE fact_transactions
 );
 ```
 
+#### Indexes
+
+```sqlite
+-- Indexes for Fact Table
+CREATE UNIQUE INDEX idx_fact_transactions_pk ON fact_transactions (transaction_id);
+CREATE INDEX idx_fact_date_id ON fact_transactions (date_id);
+CREATE INDEX idx_fact_time_id ON fact_transactions (time_id);
+CREATE INDEX idx_fact_exporter_id ON fact_transactions (exporter_id);
+CREATE INDEX idx_fact_importer_id ON fact_transactions (importer_id);
+CREATE INDEX idx_fact_product_id ON fact_transactions (product_id);
+CREATE INDEX idx_fact_incoterms_id ON fact_transactions (incoterms_id);
+CREATE INDEX idx_fact_transport_id ON fact_transactions (transport_id);
+CREATE INDEX idx_fact_currency_id ON fact_transactions (currency_id);
+CREATE INDEX idx_fact_weight_unit_id ON fact_transactions (weight_unit_id);
+
+-- Indexes for Dimension Tables
+-- Company
+CREATE UNIQUE INDEX idx_dim_company_pk ON dim_company (id);
+CREATE INDEX idx_dim_company_code ON dim_company (company_code);
+CREATE INDEX idx_dim_company_country_code ON dim_company (country_code);
+
+-- Product
+CREATE UNIQUE INDEX idx_dim_product_pk ON dim_product (id);
+CREATE INDEX idx_dim_product_unique ON dim_product (hs_code, raw_product_name, raw_product_description);
+
+-- Incoterms
+CREATE UNIQUE INDEX idx_dim_incoterms_pk ON dim_incoterms (id);
+CREATE INDEX idx_dim_incoterms_incoterms ON dim_incoterms (incoterms);
+
+-- Transport
+CREATE UNIQUE INDEX idx_dim_transport_pk ON dim_transport (id);
+CREATE INDEX idx_dim_transport_transport ON dim_transport (transport);
+
+-- Currency
+CREATE UNIQUE INDEX idx_dim_currency_pk ON dim_currency (id);
+CREATE INDEX idx_dim_currency_code ON dim_currency (currency_code);
+
+-- Weight Unit
+CREATE UNIQUE INDEX idx_dim_weight_unit_pk ON dim_weight_unit (id);
+CREATE INDEX idx_dim_weight_unit_unit ON dim_weight_unit (unit);
+
+-- Date
+CREATE UNIQUE INDEX idx_dim_date_pk ON dim_date (id);
+CREATE INDEX idx_dim_date_date ON dim_date (date);
+
+-- Time
+CREATE UNIQUE INDEX idx_dim_time_pk ON dim_time (id);
+
+
+```
+
 ### Explanation
 
 #### Star Schema Design
 
 The star schema is composed of:
 
-1. **Fact Table**: `fact_transactions`
-    - This table captures the core transactional data, such as transaction amounts, weights, and related identifiers.
-    - Each record represents a single transaction and references multiple dimensions to provide contextual details.
-    - Includes surrogate keys for dimensions (`date_id`, `time_id`, `exporter_id`, etc.) to optimize join operations.
+1. **Fact Table**:
+    - `fact_transactions`: This table is exactly the same as the `transactions` table in the original schema but with
+      foreign keys to dimension tables.
 
 2. **Dimension Tables**:
     - `dim_company`: Stores exporter and importer details, such as company name and country code.
@@ -581,11 +633,23 @@ The star schema is composed of:
     - `dim_currency`: Contains currency codes to support multi-currency transactions.
     - `dim_weight_unit`: Standardizes weight units for consistency in analysis.
 
+#### Design Considerations
+
+1. **Scalability**:
+    - The use of surrogate keys in the fact table ensures efficient indexing and lookup.
+    - Dimension tables are normalized to avoid redundancy and maintain consistency.
+
+2. **Performance Optimization**:
+    - The fact table includes only numerical values and foreign keys to minimize data size and optimize storage.
+    - Indexing on foreign keys and commonly queried columns will speed up join and filter operations.
+
+3. **Flexibility**:
+    - The star schema allows for easy expansion by adding new dimensions or facts without affecting existing data.
+
 ---
 
-[//]: # (## Additional Notes)
+## References
 
-[//]: # ()
-[//]: # (- Refer to the `q_{question_number}.sql` files for the complete SQL queries and DDL statements.)
-
-[//]: # ()
+1. https://www.khanacademy.org/math/cc-sixth-grade-math/cc-6th-data-statistics/cc-6th/a/interquartile-range-review
+2. https://www.databricks.com/glossary/star-schema
+3. https://www.sqlite.org/
