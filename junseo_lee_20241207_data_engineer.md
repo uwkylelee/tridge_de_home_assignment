@@ -182,7 +182,29 @@ WHERE ue.unique_importer_count = (SELECT MAX(unique_importer_count)
 
 #### What this reveals about market concentration
 
-The question aims to identify the exporting company with the most diverse set of importing companies. By calculating the
+By calculating the number of unique importers for each exporter, I could gain insights into market concentration. A
+higher unique importer count indicates that the exporter has relationships with a more diverse set of importing
+companies. This diversity can reflect the exporter's market reach, competitiveness, and ability to engage with a broad
+range of importers. There are several implications of having relationships with a higher number of importers:
+
+From an Exporter Perspective:
+
+1. Exporters with a large number of unique importers, like Company_069, can leverage their dominant position to
+   negotiate better terms and maintain a competitive edge in the market.
+
+2. Being able to attract a wide range of importers indicates a strong reputation.
+
+3. A higher count of unique importers reduces dependency on a few clients, which mitigates the risk of revenue loss if
+   one or more importers cease trading.
+
+From a Market Perspective:
+
+1. A diverse set of importers suggests a competitive market environment where exporters strive to attract and retain
+   clients through various strategies, such as pricing, quality, and service offerings.
+2. Importers dealing with dominant exporters may face challenges in negotiating favorable terms due to the exporter’s
+   strong market position.
+3. A high concentration of trade with a single exporter may lead to reliance on that supplier, posing risks if supply
+   disruptions occur.
 
 #### CTE 1: unique_exporters
 
@@ -417,7 +439,7 @@ within the IQR. Then, for each `weight_unit`, the average unit price in USD is c
 ### Answer
 
 To design a data mart for company transaction statistics with approximately 5 billion records, I would propose the
-following schema based on the star schema model. 
+following schema based on the star schema model.
 
 ### SQL Query
 
@@ -445,19 +467,6 @@ CREATE TABLE dim_product
     created_at              TEXT,
     updated_at              TEXT,
     UNIQUE (hs_code, raw_product_name, raw_product_description)
-);
-
-DROP TABLE IF EXISTS dim_date;
-CREATE TABLE dim_date
-(
-    id             INTEGER PRIMARY KEY AUTOINCREMENT,
-    date           TEXT,
-    year           INTEGER,
-    month          INTEGER,
-    day_of_month   INTEGER,
-    day_of_quarter INTEGER,
-    day_of_week    INTEGER,
-    created_at     TEXT
 );
 
 DROP TABLE IF EXISTS dim_incoterms;
@@ -494,6 +503,19 @@ CREATE TABLE dim_weight_unit
     unit       TEXT,
     created_at TEXT,
     updated_at TEXT
+);
+
+DROP TABLE IF EXISTS dim_date;
+CREATE TABLE dim_date
+(
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    date           TEXT,
+    year           INTEGER,
+    month          INTEGER,
+    day_of_month   INTEGER,
+    day_of_quarter INTEGER,
+    day_of_week    INTEGER,
+    created_at     TEXT
 );
 
 DROP TABLE IF EXISTS dim_time;
@@ -540,8 +562,24 @@ CREATE TABLE fact_transactions
 
 ### Explanation(if you need)
 
+#### Star Schema Design
 
+The star schema is composed of:
 
+1. **Fact Table**: `fact_transactions`
+    - This table captures the core transactional data, such as transaction amounts, weights, and related identifiers.
+    - Each record represents a single transaction and references multiple dimensions to provide contextual details.
+    - Includes surrogate keys for dimensions (`date_id`, `time_id`, `exporter_id`, etc.) to optimize join operations.
+
+2. **Dimension Tables**:
+    - `dim_company`: Stores exporter and importer details, such as company name and country code.
+    - `dim_product`: Contains product information, including HS codes and descriptions.
+    - `dim_date`: Provides date-related attributes (year, month, day) for time-based analysis.
+    - `dim_time`: Captures time-specific details (hour, minute, second) to support granular analysis.
+    - `dim_incoterms`: Holds standardized trade terms (e.g., CIF, FOB) to analyze trade agreements.
+    - `dim_transport`: Details transport modes (e.g., sea, air) for logistics analysis.
+    - `dim_currency`: Contains currency codes to support multi-currency transactions.
+    - `dim_weight_unit`: Standardizes weight units for consistency in analysis.
 
 ---
 
