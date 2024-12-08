@@ -37,6 +37,13 @@
     - [Answer](#answer-3)
     - [SQL Query](#sql-query-3)
     - [Explanation(if you need)](#explanationif-you-need-3)
+        - [Methodology for Determining "Reasonable" Unit Price](#methodology-for-determining-reasonable-unit-price)
+            - [CTE 1: orange_transactions_usd](#cte-1-orange_transactions_usd)
+            - [CTE 2: unit_price_usd_row_num](#cte-2-unit_price_usd_row_num)
+            - [CTE 3: quartiles_1](#cte-3-quartiles_1)
+            - [CTE 4: quartiles_3](#cte-4-quartiles_3)
+            - [CTE 5: iqr_bounds](#cte-5-iqr_bounds)
+            - [Final SELECT Statement](#final-select-statement-3)
 - [Question 5](#question-5)
     - [Answer](#answer-4)
     - [SQL Query](#sql-query-4)
@@ -191,6 +198,8 @@ by applying the `MAX()` function. This ensures that all exporters sharing the ma
 returned. Although the dataset given contains only one exporter with the maximum count, using `MAX()` ensures
 allows us to handle cases where multiple exporters have the same maximum unique importer count.
 
+#### What this reveals about market concentration
+
 ---
 
 ## Question 3
@@ -290,22 +299,13 @@ more than 3 rows if multiple `hs_code` values share the same transaction count r
 same transaction count rank of 1). Hence, I finalized the query by limiting the results to the top 3 ranks
 using `ORDER BY hctc.transaction_count DESC LIMIT 3`.
 
-#### What this reveals about market concentration
-
-The analysis reveals insights into market concentration by identifying the exporter with the highest total transaction
-value and the top 3 frequently exported `hs_code` values. By focusing on the exporter with the largest sum of total
-prices, we can gain a better understanding of the market dynamics and the key product categories driving revenue for the
-company. The top 3 frequently exported `hs_code` values provide valuable information about the exporter's core business
-activities and market focus. This analysis can help stakeholders make informed decisions about market strategies,
-product development, and growth opportunities based on the identified trends and patterns in the transaction data.
-
 ---
 
 ## Question 4
 
 ### Answer
 
-unit price for Orange-related imports in 2023 : `0.1769891386163061`
+unit price for Orange-related imports in 2023 : `0.1769891386163061` **USD**
 
 ### SQL Query
 
@@ -341,21 +341,66 @@ WITH orange_transactions_usd AS (SELECT weight,
                            (q1.unit_price_usd - 1.5 * (q3.unit_price_usd - q1.unit_price_usd)) AS lower_bound,
                            (q3.unit_price_usd + 1.5 * (q3.unit_price_usd - q1.unit_price_usd)) AS upper_bound
                     FROM quartiles_1 q1
-                             JOIN
-                         quartiles_3 q3 ON q1.weight_unit = q3.weight_unit),
-     filtered_unit_prices AS (SELECT up.weight_unit,
-                                     up.unit_price_usd
-                              FROM unit_price_usd_row_num up
-                                       JOIN iqr_bounds ib ON up.weight_unit = ib.weight_unit
-                              WHERE up.unit_price_usd BETWEEN ib.lower_bound AND ib.upper_bound)
-SELECT weight_unit,
-       AVG(unit_price_usd) AS avg_unit_price_usd
-FROM filtered_unit_prices
-GROUP BY weight_unit;
-
+                             JOIN quartiles_3 q3
+                                  ON q1.weight_unit = q3.weight_unit)
+SELECT up.weight_unit,
+       AVG(up.unit_price_usd) AS avg_unit_price_usd
+FROM unit_price_usd_row_num up
+         JOIN iqr_bounds ib ON up.weight_unit = ib.weight_unit
+WHERE up.unit_price_usd BETWEEN ib.lower_bound AND ib.upper_bound
+GROUP BY up.weight_unit;
 ```
 
 ### Explanation(if you need)
+
+The SQL query is written to calculate a reasonable unit price for Orange-related imports in 2023. Although the dataset
+only contains one weight unit (KG), the query is designed to be scalable for multiple weight units.
+
+#### Methodology for Determining "Reasonable" Unit Price
+
+To determine a reasonable unit price for Orange-related imports in 2023, I have used the Interquartile Range (IQR)
+method to remove outliers because it effectively identifies extreme values by measuring the spread of the middle 50% of
+data. By excluding unit prices below Q1 - 1.5 × IQR and above Q3 + 1.5 × IQR, we ensure that only typical, reasonable
+values are included. This method is robust, unaffected by extreme values, and suitable for skewed data distributions.
+
+#### CTE 1: orange_transactions_usd
+
+This CTE filters the transactions to include only those related to oranges by checking if the `raw_product_name` column
+contains the word 'orange'. It also converts the total price to USD based on the currency of the transaction using the
+provided exchange rates.
+
+#### CTE 2: unit_price_usd_row_num
+
+This CTE calculates the unit price in USD for each transaction by dividing the total price in USD by the weight. It also
+assigns a row number to each row within the partition of `weight_unit` based on the unit price in USD.
+The `ROW_NUMBER()` function is used to assign a unique row number to each row within the partition, and
+the `COUNT(*) OVER (PARTITION BY weight_unit)` function calculates the total count of rows within the partition.
+
+#### CTE 3: quartiles_1
+
+This CTE calculates the first quartile (Q1) of the unit prices in USD for each `weight_unit`. The first quartile
+represents the 25th percentile of the unit prices. By filtering the results based on the row number equal to
+`total_count * 0.25`, we can identify the unit price at the first quartile. In this case, since the total count is an
+even number, the first quartile can be simply calculated as `total_count * 0.25`.
+
+#### CTE 4: quartiles_3
+
+This CTE calculates the third quartile (Q3) of the unit prices in USD for each `weight_unit`. The third quartile
+represents the 75th percentile of the unit prices. By filtering the results based on the row number equal to
+`total_count * 0.75`, we can identify the unit price at the third quartile. Similar to the first quartile calculation,
+the third quartile can be calculated as `total_count * 0.75`.
+
+#### CTE 5: iqr_bounds
+
+This CTE calculates the lower and upper bounds for the interquartile range (IQR) for each `weight_unit`. The IQR is
+calculated as the difference between the Q3 and the Q1. The lower bound is calculated as `Q1 - 1.5 * IQR`, and the upper
+bound is calculated as `Q3 + 1.5 * IQR`. These bounds are used to identify the outliers in the data.
+
+#### Final SELECT Statement
+
+In this CTE, the unit prices in USD are filtered based on the IQR bounds calculated in the previous step. By joining the
+`unit_price_usd_row_num` CTE with the `iqr_bounds` CTE, we can filter out the outliers and focus on the unit prices
+within the IQR. Then, for each `weight_unit`, the average unit price in USD is calculated using the `AVG()` function.
 
 ---
 
